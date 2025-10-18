@@ -29,7 +29,6 @@ import { textEditorSchema, textEditorTool } from './tools/text_editor';
 
 export const extensionName = 'vscode-mcp-server';
 export const extensionDisplayName = 'VSCode MCP Server';
-
 interface RegisteredTool {
   description?: string;
   inputZodSchema?: AnyZodObject;
@@ -40,6 +39,19 @@ interface RegisteredTool {
 export class ToolRegistry {
   private _registeredTools: { [name: string]: RegisteredTool } = {};
   private _toolHandlersInitialized = false;
+  private _outputChannel?: vscode.OutputChannel;
+
+  private logMessage(message: string): void {
+    try {
+      if (!this._outputChannel) {
+        this._outputChannel = vscode.window.createOutputChannel(`${extensionDisplayName} logging`);
+      }
+      this._outputChannel.appendLine(message);
+    } catch (error) {
+      // swallow the error
+    }
+  }
+
   constructor(readonly server: Server) { }
   toolWithRawInputSchema(
     name: string,
@@ -47,8 +59,10 @@ export class ToolRegistry {
     inputSchema: Tool['inputSchema'],
     cb: (args: unknown, extra: RequestHandlerExtra) => ReturnType<ToolCallback<any>>,
   ) {
+
     if (this._registeredTools[name]) {
-      throw new Error(`Tool ${name} is already registered`);
+      this.logMessage(`Tool ${name} is already registered`);
+      return;
     }
 
     this._registeredTools[name] = {
@@ -58,6 +72,7 @@ export class ToolRegistry {
     };
 
     this.#setToolRequestHandlers();
+    this.logMessage(`Registered Tool ${name}`);
   }
   tool<Args extends ZodRawShape>(
     name: string,
@@ -66,7 +81,8 @@ export class ToolRegistry {
     cb: ToolCallback<Args>,
   ) {
     if (this._registeredTools[name]) {
-      throw new Error(`Tool ${name} is already registered`);
+      this.logMessage(`Tool ${name} is already registered`);
+      return;
     }
 
     this._registeredTools[name] = {
@@ -77,6 +93,7 @@ export class ToolRegistry {
     };
 
     this.#setToolRequestHandlers();
+    this.logMessage(`Registered Tool ${name}`);
   }
   #setToolRequestHandlers() {
     if (this._toolHandlersInitialized) {
