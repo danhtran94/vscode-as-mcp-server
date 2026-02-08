@@ -223,6 +223,95 @@ export const initialTools = [
     }
   },
   {
+    "name": "read_file",
+    "description": "Read file contents or list directory entries.\nSupports optional line range for viewing specific portions of a file.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "File path to read"
+        },
+        "view_range": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "Optional [start, end] line numbers (1-indexed, -1 for end)"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "write_file",
+    "description": "Write or modify file contents using VSCode's native APIs:\n- str_replace: Replace text in an existing file\n- create: Create a new file with specified content\n- insert: Insert text at a specific line number\n\nCode Editing Tips:\n- VSCode may automatically prune unused imports when saving. To prevent this, make sure the imported type is\n  actually used in your code before adding the import.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "enum": [
+            "str_replace",
+            "create",
+            "insert"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "description": "File path to operate on"
+        },
+        "old_str": {
+          "type": "string",
+          "description": "Text to replace (required for str_replace command)"
+        },
+        "new_str": {
+          "type": "string",
+          "description": "New text to insert (required for str_replace and insert commands)"
+        },
+        "file_text": {
+          "type": "string",
+          "description": "Content for new file (required for create command)"
+        },
+        "insert_line": {
+          "type": "number",
+          "description": "Line number to insert after (required for insert command)"
+        },
+        "skip_dialog": {
+          "type": "boolean",
+          "description": "Skip confirmation dialog (for testing only)"
+        }
+      },
+      "required": [
+        "command",
+        "path"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "undo_edit",
+    "description": "Undo the last file edit, restoring the file to its previous state.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
     "name": "text_editor",
     "description": "A text editor tool that provides file manipulation capabilities using VSCode's native APIs:\n- view: Read file contents with optional line range\n- str_replace: Replace text in file\n- create: Create new file\n- insert: Insert text at specific line\n- undo_edit: Restore from backup\n\nCode Editing Tips:\n- VSCode may automatically prune unused imports when saving. To prevent this, make sure the imported type is\n  actually used in your code before adding the import.",
     "inputSchema": {

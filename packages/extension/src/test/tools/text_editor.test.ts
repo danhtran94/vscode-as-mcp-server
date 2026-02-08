@@ -1,7 +1,10 @@
 import * as assert from 'assert';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { readFileTool } from '../../tools/read_file';
 import { textEditorTool } from '../../tools/text_editor';
+import { undoEditTool } from '../../tools/undo_edit';
+import { writeFileTool } from '../../tools/write_file';
 
 suite('Text Editor Tool Test Suite', () => {
   const tmpDir = path.join(__dirname, '../../test-tmp');
@@ -126,5 +129,147 @@ suite('Text Editor Tool Test Suite', () => {
 
     assert.strictEqual(result.isError, true, 'Expected error for invalid relative path');
     assert.match(result.content[0].text, /File does not exist/, 'Should show error message');
+  });
+});
+
+suite('read_file Tool Test Suite', () => {
+  const tmpDir = path.join(__dirname, '../../test-tmp-read');
+
+  suiteSetup(async () => {
+    const uri = vscode.Uri.file(tmpDir);
+    await vscode.workspace.fs.createDirectory(uri);
+
+    const testFile = vscode.Uri.file(path.join(tmpDir, 'test.txt'));
+    const content = Buffer.from('line1\nline2\nline3\n', 'utf-8');
+    await vscode.workspace.fs.writeFile(testFile, content);
+  });
+
+  suiteTeardown(async () => {
+    const uri = vscode.Uri.file(tmpDir);
+    await vscode.workspace.fs.delete(uri, { recursive: true });
+  });
+
+  test('Read file content', async () => {
+    const result = await readFileTool({
+      path: path.join(tmpDir, 'test.txt'),
+    });
+
+    assert.strictEqual(result.isError, false, 'Expected success');
+    assert.strictEqual(result.content[0].text, 'line1\nline2\nline3\n', 'Content should match');
+  });
+
+  test('Read file with range', async () => {
+    const result = await readFileTool({
+      path: path.join(tmpDir, 'test.txt'),
+      view_range: [2, 3],
+    });
+
+    assert.strictEqual(result.isError, false, 'Expected success');
+    assert.strictEqual(result.content[0].text, 'line2\nline3\n', 'Content should match range');
+  });
+
+  test('Read non-existent file', async () => {
+    const result = await readFileTool({
+      path: path.join(tmpDir, 'non-existent.txt'),
+    });
+
+    assert.strictEqual(result.isError, true, 'Expected error');
+    assert.match(result.content[0].text, /File does not exist/, 'Should show error message');
+  });
+
+  test('Read directory listing', async () => {
+    const result = await readFileTool({
+      path: tmpDir,
+    });
+
+    assert.strictEqual(result.isError, false, 'Expected success');
+    assert.match(result.content[0].text, /Directory listing for/, 'Should show directory listing');
+  });
+});
+
+suite('write_file Tool Test Suite', () => {
+  const tmpDir = path.join(__dirname, '../../test-tmp-write');
+
+  suiteSetup(async () => {
+    const uri = vscode.Uri.file(tmpDir);
+    await vscode.workspace.fs.createDirectory(uri);
+  });
+
+  suiteTeardown(async () => {
+    const uri = vscode.Uri.file(tmpDir);
+    await vscode.workspace.fs.delete(uri, { recursive: true });
+  });
+
+  test('Create file via write_file', async () => {
+    const newFilePath = path.join(tmpDir, 'created.txt');
+    const result = await writeFileTool({
+      command: 'create',
+      path: newFilePath,
+      file_text: 'created content',
+      skip_dialog: true,
+    });
+
+    assert.strictEqual(result.isError, false, 'Expected success');
+
+    const uri = vscode.Uri.file(newFilePath);
+    const content = await vscode.workspace.fs.readFile(uri);
+    assert.strictEqual(Buffer.from(content).toString('utf-8'), 'created content', 'File content should match');
+  });
+
+  test('Replace text via write_file', async () => {
+    const testFile = path.join(tmpDir, 'replace.txt');
+    const uri = vscode.Uri.file(testFile);
+    await vscode.workspace.fs.writeFile(uri, Buffer.from('old text here\n', 'utf-8'));
+
+    const result = await writeFileTool({
+      command: 'str_replace',
+      path: testFile,
+      old_str: 'old text',
+      new_str: 'new text',
+      skip_dialog: true,
+    });
+
+    assert.strictEqual(result.isError, false, 'Expected success');
+
+    const newContent = await vscode.workspace.fs.readFile(uri);
+    assert.strictEqual(Buffer.from(newContent).toString('utf-8'), 'new text here\n', 'Content should be replaced');
+  });
+
+  test('Insert text via write_file', async () => {
+    const testFile = path.join(tmpDir, 'insert.txt');
+    const uri = vscode.Uri.file(testFile);
+    await vscode.workspace.fs.writeFile(uri, Buffer.from('line1\nline3\n', 'utf-8'));
+
+    const result = await writeFileTool({
+      command: 'insert',
+      path: testFile,
+      insert_line: 1,
+      new_str: 'line2',
+      skip_dialog: true,
+    });
+
+    assert.strictEqual(result.isError, false, 'Expected success');
+
+    const newContent = await vscode.workspace.fs.readFile(uri);
+    assert.strictEqual(Buffer.from(newContent).toString('utf-8'), 'line1\nline2\nline3\n', 'Content should be inserted');
+  });
+
+  test('str_replace missing params', async () => {
+    const result = await writeFileTool({
+      command: 'str_replace',
+      path: '/dummy',
+    });
+
+    assert.strictEqual(result.isError, true, 'Expected error');
+    assert.match(result.content[0].text, /old_str and new_str/, 'Should show missing params error');
+  });
+});
+
+suite('undo_edit Tool Test Suite', () => {
+  test('Undo with no active edit session', async () => {
+    const result = await undoEditTool();
+
+    assert.strictEqual(result.isError, true, 'Expected error');
+    assert.match(result.content[0].text, /No active edit session/, 'Should show no active session error');
   });
 });

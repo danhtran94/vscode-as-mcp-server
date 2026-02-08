@@ -24,13 +24,13 @@ export const textEditorSchema = z.object({
 
 type TextEditorParams = z.infer<typeof textEditorSchema>;
 
-interface TextEditorResult {
+export interface TextEditorResult {
   content: { type: 'text'; text: string }[];
   isError?: boolean;
 }
 
 // バックアップと差分表示を管理するクラス
-class EditorManager {
+export class EditorManager {
   private static instance: EditorManager;
   private diffViewProvider: DiffViewProvider;
 
@@ -528,46 +528,33 @@ class EditorManager {
   }
 }
 
-// メインのツールハンドラー
+// メインのツールハンドラー（後方互換のための薄いディスパッチャー）
 export async function textEditorTool(params: TextEditorParams): Promise<TextEditorResult> {
   console.log('textEditorTool: Starting with params:', params);
-  const editor = EditorManager.getInstance();
 
   switch (params.command) {
     case 'view': {
-      // Convert array to tuple for backwards compatibility
+      const { readFileTool } = await import('./read_file');
       const viewRange = params.view_range ? [params.view_range[0], params.view_range[1]] as [number, number] : undefined;
-      return await editor.viewFile(params.path, viewRange);
+      return await readFileTool({ path: params.path, view_range: viewRange });
     }
-    case 'str_replace': {
-      if (!params.old_str || !params.new_str) {
-        return {
-          content: [{ type: 'text', text: 'old_str and new_str parameters are required' }],
-          isError: true,
-        };
-      }
-      return await editor.replaceText(params.path, params.old_str, params.new_str, params.skip_dialog);
-    }
-    case 'create': {
-      if (!params.file_text) {
-        return {
-          content: [{ type: 'text', text: 'file_text parameter is required' }],
-          isError: true,
-        };
-      }
-      return await editor.createFile(params.path, params.file_text, params.skip_dialog);
-    }
+    case 'str_replace':
+    case 'create':
     case 'insert': {
-      if (params.insert_line === undefined || !params.new_str) {
-        return {
-          content: [{ type: 'text', text: 'insert_line and new_str parameters are required' }],
-          isError: true,
-        };
-      }
-      return await editor.insertText(params.path, params.insert_line, params.new_str, params.skip_dialog);
+      const { writeFileTool } = await import('./write_file');
+      return await writeFileTool({
+        command: params.command,
+        path: params.path,
+        old_str: params.old_str,
+        new_str: params.new_str,
+        file_text: params.file_text,
+        insert_line: params.insert_line,
+        skip_dialog: params.skip_dialog,
+      });
     }
     case 'undo_edit': {
-      return await editor.undoEdit();
+      const { undoEditTool } = await import('./undo_edit');
+      return await undoEditTool();
     }
     default:
       return {

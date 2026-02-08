@@ -3,7 +3,7 @@
   "displayName": "VSCode as MCP Server",
   "description": "Expose VSCode features such as file viewing and editing as MCP, enabling the LLM to access these functionalities.",
   "publisher": "acomagu",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "type": "commonjs",
   "icon": "icon.png",
   "engines": {
@@ -53,6 +53,11 @@
           "type": "boolean",
           "default": false,
           "description": "If true, even commands marked as non-destructive (modifySomething=false) will require user confirmation."
+        },
+        "mcpServer.registerExternalTools": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, expose tools from other VS Code extensions (e.g. Copilot) as MCP tools."
         }
       }
     }

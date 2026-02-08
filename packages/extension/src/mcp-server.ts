@@ -25,7 +25,10 @@ import { listDirectorySchema, listDirectoryTool } from './tools/list_directory';
 import { listVSCodeCommandsSchema, listVSCodeCommandsToolHandler } from './tools/list_vscode_commands';
 import { previewUrlSchema, previewUrlToolHandler } from './tools/preview_url';
 import { registerExternalTools } from './tools/register_external_tools';
+import { readFileSchema, readFileTool } from './tools/read_file';
 import { textEditorSchema, textEditorTool } from './tools/text_editor';
+import { undoEditSchema, undoEditTool } from './tools/undo_edit';
+import { writeFileSchema, writeFileTool } from './tools/write_file';
 
 export const extensionName = 'vscode-mcp-server';
 export const extensionDisplayName = 'VSCode MCP Server';
@@ -379,7 +382,72 @@ function registerTools(mcpServer: ToolRegistry) {
     },
   );
 
-  // Register text editor tool
+  // Register read_file tool
+  mcpServer.tool(
+    'read_file',
+    dedent`
+      Read file contents or list directory entries.
+      Supports optional line range for viewing specific portions of a file.
+    `.trim(),
+    readFileSchema.shape,
+    async (params) => {
+      const result = await readFileTool(params);
+      return {
+        content: result.content.map(item => ({
+          ...item,
+          type: 'text' as const,
+        })),
+        isError: result.isError,
+      };
+    }
+  );
+
+  // Register write_file tool
+  mcpServer.tool(
+    'write_file',
+    dedent`
+      Write or modify file contents using VSCode's native APIs:
+      - str_replace: Replace text in an existing file
+      - create: Create a new file with specified content
+      - insert: Insert text at a specific line number
+
+      Code Editing Tips:
+      - VSCode may automatically prune unused imports when saving. To prevent this, make sure the imported type is
+        actually used in your code before adding the import.
+    `.trim(),
+    writeFileSchema.shape,
+    async (params) => {
+      const result = await writeFileTool(params);
+      return {
+        content: result.content.map(item => ({
+          ...item,
+          type: 'text' as const,
+        })),
+        isError: result.isError,
+      };
+    }
+  );
+
+  // Register undo_edit tool
+  mcpServer.tool(
+    'undo_edit',
+    dedent`
+      Undo the last file edit, restoring the file to its previous state.
+    `.trim(),
+    undoEditSchema.shape,
+    async () => {
+      const result = await undoEditTool();
+      return {
+        content: result.content.map(item => ({
+          ...item,
+          type: 'text' as const,
+        })),
+        isError: result.isError,
+      };
+    }
+  );
+
+  // Register text editor tool (backward-compatible alias)
   mcpServer.tool(
     'text_editor',
     dedent`
@@ -525,8 +593,11 @@ function registerTools(mcpServer: ToolRegistry) {
     }
   );
 
-  // Register all external tools
-  registerExternalTools(mcpServer);
+  // Register all external tools (gated by config, default off)
+  const registerExternal = vscode.workspace.getConfiguration('mcpServer').get<boolean>('registerExternalTools', false);
+  if (registerExternal) {
+    registerExternalTools(mcpServer);
+  }
 }
 
 function registerResourceHandlers(mcpServer: McpServer) {

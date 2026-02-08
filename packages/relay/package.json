@@ -1,6 +1,6 @@
 {
   "name": "vscode-as-mcp-server",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "VSCode MCP relay that supports multiple servers",
   "main": "dist/index.js",
   "bin": {
