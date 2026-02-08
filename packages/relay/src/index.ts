@@ -45,7 +45,7 @@ class MCPRelay {
 
       // Compare the fetched tools with the cached ones
       if (cachedTools && cachedTools.length === tools.length) {
-        console.error('Fetched tools list is the same as the cached one, not updating cache');
+        console.debug('Fetched tools list is the same as the cached one, not updating cache');
         return { tools: cachedTools };
       }
 
@@ -134,7 +134,7 @@ class MCPRelay {
     await this.initCacheDir();
     try {
       await fs.writeFile(TOOLS_CACHE_FILE, JSON.stringify(tools), 'utf8');
-      console.error('Tools list cache saved');
+      console.debug('Tools list cache saved');
     } catch (err) {
       console.error(`Failed to save cache: ${(err as Error).message}`);
     }
