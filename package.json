@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "scripts": {
+    "build:extension": "pnpm --filter ./packages/extension compile",
+    "build:relay": "pnpm --filter ./packages/relay build",
+    "build:relay:bin": "pnpm --filter ./packages/relay build:bin",
+    "build": "pnpm package:extension && pnpm build:relay:bin",
+    "package:extension": "pnpm --filter ./packages/extension package-extension"
+  }
+}

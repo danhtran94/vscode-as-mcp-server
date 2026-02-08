@@ -11,6 +11,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "build:bin": "bun build src/index.ts --compile --outfile dist/vscode-as-mcp-server",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "test": "node --test --import tsx"
