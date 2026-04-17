@@ -45,7 +45,7 @@ class MCPRelay {
 
       // Compare the fetched tools with the cached ones
       if (cachedTools && cachedTools.length === tools.length) {
-        console.debug('Fetched tools list is the same as the cached one, not updating cache');
+        console.error('Fetched tools list is the same as the cached one, not updating cache');
         return { tools: cachedTools };
       }
 
@@ -113,10 +113,10 @@ class MCPRelay {
       }
     });
   }
-  // キャッシュディレクトリの初期化
+  // Initialize cache directory
   async initCacheDir(): Promise<void> {
     try {
-      // ディレクトリが存在しない場合は作成
+      // Create directory if it doesn't exist
       try {
         await fs.mkdir(CACHE_DIR, { recursive: true });
       } catch (err) {
@@ -129,12 +129,12 @@ class MCPRelay {
     }
   }
 
-  // キャッシュの保存
+  // Save tools cache
   async saveToolsCache(tools: any[]): Promise<void> {
     await this.initCacheDir();
     try {
       await fs.writeFile(TOOLS_CACHE_FILE, JSON.stringify(tools), 'utf8');
-      console.debug('Tools list cache saved');
+      console.error('Tools list cache saved');
     } catch (err) {
       console.error(`Failed to save cache: ${(err as Error).message}`);
     }
@@ -191,7 +191,7 @@ class MCPRelay {
   }
 };
 
-// コマンドライン引数の解析
+// Parse command-line arguments
 function parseArgs() {
   const args = process.argv.slice(2);
   let serverUrl = 'http://localhost:60100';
