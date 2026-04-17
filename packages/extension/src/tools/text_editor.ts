@@ -6,20 +6,25 @@ import { ConfirmationUI } from '../utils/confirmation_ui';
 
 // Zod schema definition
 export const textEditorSchema = z.object({
-  command: z.enum(['view', 'str_replace', 'create', 'insert', 'undo_edit']),
-  path: z.string().describe('File path to operate on'),
+  command: z.enum(['view', 'str_replace', 'create', 'insert', 'undo_edit'], {
+    required_error: 'command is required. Pick one of: "view", "str_replace", "create", "insert", "undo_edit".',
+  }),
+  path: z.string({
+    required_error: 'path is required. Pass the absolute path to the target file (e.g., "/Users/you/project/src/foo.ts"). Workspace-root-relative paths are also accepted. Never omit this — there is no implicit "current file".',
+  }).min(1, 'path must not be empty.')
+    .describe('REQUIRED absolute path (or workspace-relative path) to the target file. There is no implicit current file — always pass this.'),
   view_range: z.array(z.number()).length(2).optional()
-    .describe('Optional [start, end] line numbers for view command (1-indexed, -1 for end)'),
+    .describe('For command="view": optional [startLine, endLine] (1-indexed; use -1 for endLine to read through end of file).'),
   old_str: z.string().optional()
-    .describe('Text to replace (required for str_replace command)'),
+    .describe('Text to replace (REQUIRED when command="str_replace"). Must match exactly, including whitespace.'),
   new_str: z.string().optional()
-    .describe('New text to insert (required for str_replace and insert commands)'),
+    .describe('New text (REQUIRED when command="str_replace" or command="insert").'),
   file_text: z.string().optional()
-    .describe('Content for new file (required for create command)'),
+    .describe('Full file content (REQUIRED when command="create").'),
   insert_line: z.number().optional()
-    .describe('Line number to insert after (required for insert command)'),
+    .describe('0-indexed line number to insert AFTER (REQUIRED when command="insert").'),
   skip_dialog: z.boolean().optional()
-    .describe('Skip confirmation dialog (for testing only)'),
+    .describe('Skip the confirmation dialog. For tests only — do not set this in normal tool calls.'),
 });
 
 type TextEditorParams = z.infer<typeof textEditorSchema>;

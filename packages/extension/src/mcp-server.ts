@@ -190,9 +190,16 @@ export class ToolRegistry {
             request.params.arguments,
           );
           if (!parseResult.success) {
+            // Build an actionable message. Zod's default output ("Required at path") is cryptic enough
+            // that models sometimes retry with the same bad shape; an explicit "missing X — how to fix"
+            // message converts one failed call into one corrected retry.
+            const issues = parseResult.error.issues.map((issue) => {
+              const fieldPath = issue.path.length > 0 ? issue.path.join('.') : '(root)';
+              return `  - ${fieldPath}: ${issue.message}`;
+            }).join('\n');
             throw new McpError(
               ErrorCode.InvalidParams,
-              `Invalid arguments for tool ${request.params.name}: ${parseResult.error.message}`,
+              `Invalid arguments for tool "${request.params.name}":\n${issues}\n\nFix these fields in your next call — every REQUIRED field must be provided.`,
             );
           }
 
@@ -505,20 +512,24 @@ function registerTools(mcpServer: ToolRegistry) {
     }
   );
 
-  // Register text editor tool (backward-compatible alias)
+  // Register text editor tool (deprecated backward-compatible alias).
+  // This dispatcher forwards to read_file / write_file / undo_edit. Present for old
+  // client configs only; the tool description actively steers newer clients elsewhere so
+  // we stop competing with the specific tools for the model's attention.
   mcpServer.tool(
     'text_editor',
     dedent`
-      A text editor tool that provides file manipulation capabilities using VSCode's native APIs:
-      - view: Read file contents with optional line range
-      - str_replace: Replace text in file
-      - create: Create new file
-      - insert: Insert text at specific line
-      - undo_edit: Restore from backup
+      DEPRECATED — prefer the specific tools instead:
+      - read_file   (for command="view")
+      - write_file  (for command="str_replace" | "create" | "insert")
+      - undo_edit   (for command="undo_edit")
 
-      Code Editing Tips:
-      - VSCode may automatically prune unused imports when saving. To prevent this, make sure the imported type is
-        actually used in your code before adding the import.
+      This tool is a thin dispatcher kept only for backward compatibility with existing configurations.
+      Do not select this tool when one of the specific tools above can do the job — they have clearer
+      argument schemas and better error messages.
+
+      If you do call this tool: the "path" argument is REQUIRED on every command except "undo_edit".
+      Never omit path — there is no implicit "current file".
     `.trim(),
     textEditorSchema.shape,
     async (params) => {
