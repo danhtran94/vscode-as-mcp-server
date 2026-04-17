@@ -21,6 +21,10 @@ export class DiffViewProvider {
   private activeLineController?: DecorationController
   private streamedLines: string[] = []
   private preDiagnostics: [vscode.Uri, vscode.Diagnostic[]][] = []
+  // URI of the editor the user had active when the edit cycle began. After saveChanges we
+  // return focus here so the user ends up where they started, not on the file Claude just
+  // modified/created.
+  private preEditActiveEditorUri?: vscode.Uri
 
   constructor(private cwd: string) { }
 
@@ -28,8 +32,12 @@ export class DiffViewProvider {
     console.log('DiffViewProvider.open:', {
       relPath,
       editType: this.editType,
-      isEditing: this.isEditing
+      isEditing: this.isEditing,
     });
+
+    // Snapshot the user's current editor so we can hand focus back after the edit.
+    // Captured BEFORE any diff view opens (which would itself change activeTextEditor).
+    this.preEditActiveEditorUri = vscode.window.activeTextEditor?.document.uri
 
     this.relPath = relPath
     const fileExists = this.editType === "modify"
@@ -193,8 +201,23 @@ export class DiffViewProvider {
       await updatedDocument.save()
     }
 
-    await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), { preview: false })
+    // For modifications, re-open the underlying doc so the user sees the final content in their
+    // tab bar (the diff view replaced their original tab during open()), but with preserveFocus
+    // so we don't steal attention. For creates, skip this entirely — there's no prior tab to restore.
+    if (this.editType === 'modify') {
+      await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), { preview: false, preserveFocus: true })
+    }
     await this.closeAllDiffViews()
+    // Return focus to whatever the user was reading when the edit started, if it's still valid.
+    // Applies in both auto-accept and interactive modes — once the edit is resolved, the user
+    // should end up where they were before, not on the modified/created file.
+    if (this.preEditActiveEditorUri) {
+      try {
+        await vscode.window.showTextDocument(this.preEditActiveEditorUri, { preview: false })
+      } catch {
+        // Pre-edit editor is gone (closed/deleted) — let VSCode decide focus.
+      }
+    }
 
     /*
     Getting diagnostics before and after the file edit is a better approach than
@@ -466,6 +489,7 @@ export class DiffViewProvider {
     this.activeLineController = undefined
     this.streamedLines = []
     this.preDiagnostics = []
+    this.preEditActiveEditorUri = undefined
   }
 }
 
