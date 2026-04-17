@@ -4,11 +4,13 @@ import { registerVSCodeCommands } from './commands';
 import { createMcpServer, extensionDisplayName } from './mcp-server';
 import { DIFF_VIEW_URI_SCHEME } from './utils/DiffViewProvider';
 
-// MCP Server のステータスを表示するステータスバーアイテム
+// Status bar item that displays the MCP Server status
 let serverStatusBarItem: vscode.StatusBarItem;
 let transport: BidiHttpTransport;
 
-// ステータスバーを更新する関数
+// Update the status bar to reflect the current server status.
+// The auto-accept-edits mode is surfaced as an inline suffix ("· ⚡ auto-accept") so the user
+// has a constant visual reminder that edit confirmations are being skipped.
 function updateServerStatusBar(status: 'running' | 'stopped' | 'starting' | 'tool_list_updated') {
   if (!serverStatusBarItem) {
     return;
@@ -37,6 +39,17 @@ function updateServerStatusBar(status: 'running' | 'stopped' | 'starting' | 'too
       serverStatusBarItem.command = 'mcpServer.toggleActiveStatus';
       break;
   }
+
+  // Append the auto-accept indicator after the base state text/tooltip.
+  const autoAccept = vscode.workspace.getConfiguration('mcpServer').get<boolean>('autoAcceptEdits', false);
+  if (autoAccept) {
+    serverStatusBarItem.text += ' $(zap) auto-accept';
+    serverStatusBarItem.tooltip = `${serverStatusBarItem.tooltip ?? ''}\nAuto-accept edits: ON — file-edit tools apply without confirmation. Run "MCP Server: Toggle Auto-Accept Edits" to disable.`;
+    serverStatusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+  } else {
+    serverStatusBarItem.backgroundColor = undefined;
+  }
+
   serverStatusBarItem.show();
 }
 
@@ -58,7 +71,7 @@ export const activate = async (context: vscode.ExtensionContext) => {
   async function startServer(port: number) {
     outputChannel.appendLine(`DEBUG: Starting MCP Server on port ${port}...`);
     transport = new BidiHttpTransport(port, outputChannel);
-    // サーバー状態変更のイベントハンドラを設定
+    // Wire up the server status-change event handler
     transport.onServerStatusChanged = (status) => {
       updateServerStatusBar(status);
     };
@@ -74,7 +87,7 @@ export const activate = async (context: vscode.ExtensionContext) => {
     }
   })();
 
-  // DiffViewProvider の URI スキームを mcp-diff に変更
+  // Register the DiffViewProvider under the mcp-diff URI scheme
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(DIFF_VIEW_URI_SCHEME, diffContentProvider),
   );
@@ -91,6 +104,16 @@ export const activate = async (context: vscode.ExtensionContext) => {
 
   // Register VSCode commands
   registerVSCodeCommands(context, mcpServer, outputChannel, startServer, transport);
+
+  // Re-render the status bar whenever the user flips mcpServer.autoAcceptEdits so the
+  // inline indicator stays in sync with the setting without waiting for a server status change.
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('mcpServer.autoAcceptEdits')) {
+        updateServerStatusBar(transport?.serverStatus ?? 'stopped');
+      }
+    })
+  );
 
   outputChannel.appendLine(`${extensionDisplayName} activated.`);
 };

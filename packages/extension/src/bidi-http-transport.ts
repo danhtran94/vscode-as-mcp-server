@@ -40,7 +40,7 @@ export class BidiHttpTransport implements Transport {
     this.serverStatus = 'starting';
 
     try {
-      // 現在のサーバーに対してハンドオーバーリクエストを送信
+      // Send handover request to the currently running server
       const response = await fetch(`http://localhost:${this.listenPort}/request-handover`, {
         method: 'POST',
         headers: {
@@ -53,7 +53,7 @@ export class BidiHttpTransport implements Transport {
       if (data.success) {
         this.outputChannel.appendLine('Handover request accepted');
 
-        // ハンドオーバーが成功したら、1秒待ってからサーバーを再起動する
+        // Once handover succeeds, wait 1 second before restarting the server
         this.outputChannel.appendLine('Waiting 1 second before starting server...');
         await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -71,11 +71,11 @@ export class BidiHttpTransport implements Transport {
         return false;
       }
     } catch (err) {
-      // エラーが発生した場合（サーバーが起動していない場合など）
+      // On error (e.g., no server currently running)
       const errorMessage = err instanceof Error ? err.message : String(err);
       this.outputChannel.appendLine(`Handover request failed: ${errorMessage}`);
 
-      // ハンドオーバーリクエストが失敗した場合も、1秒待ってからサーバーを起動してみる
+      // Even if the handover request failed, wait 1 second and try to start the server ourselves
       this.outputChannel.appendLine('Waiting 1 second before starting server...');
       await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -145,17 +145,18 @@ export class BidiHttpTransport implements Transport {
         }
 
         if (this.onmessage) {
-          if ('id' in message) {
+          if ('id' in message && message.id !== undefined) {
+            const id = message.id;
             // Create a new promise for the response
             const responsePromise = new Promise<JSONRPCMessage>((resolve) => {
-              this.pendingResponses.set(message.id, resolve);
+              this.pendingResponses.set(id, resolve);
             });
             // Handle the request and wait for response
             this.onmessage(message);
             const resp = await responsePromise;
             res.send(resp);
           } else {
-            // Handle the request without waiting for response
+            // Handle the request without waiting for response (notification: no id)
             this.onmessage(message);
             res.send('{ "success": true }');
           }

@@ -3,7 +3,7 @@
   "displayName": "VSCode as MCP Server",
   "description": "Expose VSCode features such as file viewing and editing as MCP, enabling the LLM to access these functionalities.",
   "publisher": "acomagu",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "type": "commonjs",
   "icon": "icon.png",
   "engines": {
@@ -25,6 +25,10 @@
       {
         "command": "mcpServer.toggleActiveStatus",
         "title": "MCP Server: Toggle Active Status"
+      },
+      {
+        "command": "mcpServer.toggleAutoAcceptEdits",
+        "title": "MCP Server: Toggle Auto-Accept Edits"
       }
     ],
     "configuration": {
@@ -58,6 +62,11 @@
           "type": "boolean",
           "default": false,
           "description": "If true, expose tools from other VS Code extensions (e.g. Copilot) as MCP tools."
+        },
+        "mcpServer.autoAcceptEdits": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, file-edit tools (write_file, text_editor, undo_edit) skip the confirmation dialog and apply changes immediately. Does NOT affect execute_command — shell commands still require confirmation per their own settings. Use the 'MCP Server: Toggle Auto-Accept Edits' command to flip this at runtime."
         }
       }
     }
@@ -90,12 +99,12 @@
     "cross-env": "^7.0.3",
     "sinon": "^20.0.0",
     "ts-loader": "^9.5.2",
-    "typescript": "^5.8.2",
+    "typescript": "^6.0.3",
     "webpack": "^5.97.1",
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.3",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "dedent": "^1.5.3",
     "diff": "^7.0.0",
     "esbuild": "^0.25.1",
@@ -105,7 +114,8 @@
     "mammoth": "^1.9.0",
     "p-wait-for": "^5.0.2",
     "pdf-parse": "^1.1.1",
-    "strip-bom": "^5.0.0"
+    "strip-bom": "^5.0.0",
+    "zod": "3.25.67"
   },
   "packageManager": "pnpm@10.6.1+sha512.40ee09af407fa9fbb5fbfb8e1cb40fbb74c0af0c3e10e9224d7b53c7658528615b2c92450e74cfad91e3a2dcafe3ce4050d80bda71d757756d2ce2b66213e9a3"
 }

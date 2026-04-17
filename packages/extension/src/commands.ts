@@ -14,7 +14,7 @@ export function registerVSCodeCommands(
   startServer: (port: number) => Promise<void>,
   transport?: BidiHttpTransport
 ) {
-  // テキストエディタのアクションコマンドを登録
+  // Register text editor action commands
   context.subscriptions.push(
     vscode.commands.registerCommand('textEditor.applyChanges', () => {
       vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
@@ -74,6 +74,23 @@ export function registerVSCodeCommands(
         outputChannel.appendLine(`Error requesting handover: ${err}`);
         vscode.window.showErrorMessage(`Failed to complete handover request: ${err}`);
       }
+    })
+  );
+
+  // Toggle auto-accept-edits mode.
+  // Flips the mcpServer.autoAcceptEdits setting (Global scope) so the choice persists across windows.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('mcpServer.toggleAutoAcceptEdits', async () => {
+      const config = vscode.workspace.getConfiguration('mcpServer');
+      const current = config.get<boolean>('autoAcceptEdits', false);
+      const next = !current;
+      await config.update('autoAcceptEdits', next, vscode.ConfigurationTarget.Global);
+      outputChannel.appendLine(`Auto-accept edits: ${next ? 'ON' : 'OFF'}`);
+      vscode.window.showInformationMessage(
+        next
+          ? 'Auto-accept edits is ON — file-edit tools will apply changes without confirmation.'
+          : 'Auto-accept edits is OFF — file-edit tools will prompt before applying changes.'
+      );
     })
   );
 }

@@ -93,8 +93,10 @@ suite('Execute Command Tool Test Suite', function () {
     const [userRejected, response] = await tool.execute('cat nonexistent.txt');
     console.log('Failed command test result:', response);
 
-    assert.strictEqual(userRejected, false, 'Command should not be user rejected');
+    // Non-zero exit code is now flagged as error via the first tuple element.
+    assert.strictEqual(userRejected, true, 'Non-zero exit should be flagged as error');
     assert.match(response.text, /No such file/, 'Should show error message');
+    assert.match(response.text, /exit code/, 'Response should surface exit code on failure');
   });
 
   test('Non-existent working directory', async function () {
@@ -222,15 +224,16 @@ suite('Execute Command Tool Test Suite', function () {
       assert.match(response.text, /terminal \(id: \d+\)/, 'Response should include terminal ID');
     });
 
-    test('Command should include terminal ID in normal execution', async function () {
-      console.log('Running terminal ID test for normal execution');
+    test('Command should return raw stdout on success', async function () {
+      console.log('Running raw stdout test for normal execution');
 
       // Execute a simple command
       const [userRejected, response] = await tool.execute('echo "show terminal ID"', undefined, false);
 
       assert.strictEqual(userRejected, false, 'Command should not be user rejected');
-      assert.match(response.text, /terminal \(id: \d+\)/, 'Response should include terminal ID');
       assert.match(response.text, /show terminal ID/, 'Output should contain command result');
+      // When stdout is non-empty, the response is the raw output — no terminal-id prefix.
+      assert.doesNotMatch(response.text, /Command executed in terminal/, 'Success path should not prefix with status line when stdout is present');
     });
   });
 });

@@ -12,6 +12,7 @@
         "allowSyntheticDefaultImports": true,
         "forceConsistentCasingInFileNames": true,
         "moduleResolution": "node",
+        "ignoreDeprecations": "6.0",
         "resolveJsonModule": true,
         "isolatedModules": true,
         "noImplicitAny": true,
@@ -27,7 +28,6 @@
         "inlineSourceMap": true,
         "inlineSources": true,
         "removeComments": true,
-        "downlevelIteration": true,
         "composite": true,
         "types": ["mocha", "node"]
     },

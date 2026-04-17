@@ -10,18 +10,18 @@ suite('Text Editor Tool Test Suite', () => {
   const tmpDir = path.join(__dirname, '../../test-tmp');
 
   suiteSetup(async () => {
-    // テスト用ディレクトリ構造を作成
+    // Create the directory structure for tests
     const uri = vscode.Uri.file(tmpDir);
     await vscode.workspace.fs.createDirectory(uri);
 
-    // テストファイルを作成
+    // Seed a test file
     const testFile = vscode.Uri.file(path.join(tmpDir, 'test.txt'));
     const content = Buffer.from('line1\nline2\nline3\n', 'utf-8');
     await vscode.workspace.fs.writeFile(testFile, content);
   });
 
   suiteTeardown(async () => {
-    // テスト用ディレクトリを削除
+    // Remove the test directory
     const uri = vscode.Uri.file(tmpDir);
     await vscode.workspace.fs.delete(uri, { recursive: true });
   });
@@ -53,12 +53,12 @@ suite('Text Editor Tool Test Suite', () => {
       command: 'create',
       path: newFilePath,
       file_text: 'new content',
-      skip_dialog: true, // テスト時は承認ダイアログをスキップ
+      skip_dialog: true, // Skip the approval dialog in tests
     });
 
     assert.strictEqual(result.isError, false, 'Expected success');
 
-    // ファイルが作成されたことを確認
+    // Verify the file was created
     const uri = vscode.Uri.file(newFilePath);
     const content = await vscode.workspace.fs.readFile(uri);
     assert.strictEqual(Buffer.from(content).toString('utf-8'), 'new content', 'File content should match');
@@ -67,7 +67,7 @@ suite('Text Editor Tool Test Suite', () => {
   test('Replace text in file', async () => {
     const testFile = path.join(tmpDir, 'replace.txt');
 
-    // テストファイルを作成
+    // Seed the test file
     const uri = vscode.Uri.file(testFile);
     const content = Buffer.from('old text here\n', 'utf-8');
     await vscode.workspace.fs.writeFile(uri, content);
@@ -77,12 +77,12 @@ suite('Text Editor Tool Test Suite', () => {
       path: testFile,
       old_str: 'old text',
       new_str: 'new text',
-      skip_dialog: true, // テスト時は承認ダイアログをスキップ
+      skip_dialog: true, // Skip the approval dialog in tests
     });
 
     assert.strictEqual(result.isError, false, 'Expected success');
 
-    // 変更が適用されたことを確認
+    // Verify the change was applied
     const newContent = await vscode.workspace.fs.readFile(uri);
     assert.strictEqual(Buffer.from(newContent).toString('utf-8'), 'new text here\n', 'Content should be replaced');
   });
@@ -90,7 +90,7 @@ suite('Text Editor Tool Test Suite', () => {
   test('Insert text in file', async () => {
     const testFile = path.join(tmpDir, 'insert.txt');
 
-    // テストファイルを作成
+    // Seed the test file
     const uri = vscode.Uri.file(testFile);
     const content = Buffer.from('line1\nline3\n', 'utf-8');
     await vscode.workspace.fs.writeFile(uri, content);
@@ -100,12 +100,12 @@ suite('Text Editor Tool Test Suite', () => {
       path: testFile,
       insert_line: 1,
       new_str: 'line2',
-      skip_dialog: true, // テスト時は承認ダイアログをスキップ
+      skip_dialog: true, // Skip the approval dialog in tests
     });
 
     assert.strictEqual(result.isError, false, 'Expected success');
 
-    // 変更が適用されたことを確認
+    // Verify the change was applied
     const newContent = await vscode.workspace.fs.readFile(uri);
     assert.strictEqual(Buffer.from(newContent).toString('utf-8'), 'line1\nline2\nline3\n', 'Content should be inserted');
   });
@@ -121,10 +121,10 @@ suite('Text Editor Tool Test Suite', () => {
   });
 
   test('Handle relative paths', async () => {
-    // ワークスペースルートからの相対パスをテスト
+    // Exercise a workspace-root-relative path
     const result = await textEditorTool({
       command: 'view',
-      path: 'test.txt', // 相対パス
+      path: 'test.txt', // relative path
     });
 
     assert.strictEqual(result.isError, true, 'Expected error for invalid relative path');

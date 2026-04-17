@@ -2,14 +2,14 @@ import * as vscode from 'vscode';
 import { StatusBarManager } from './StatusBarManager';
 
 /**
- * 設定に基づいて確認UIを表示するユーティリティクラス
+ * Utility class that shows a confirmation UI based on user settings.
  */
 export class ConfirmationUI {
-  // StatusBarManagerのシングルトンインスタンス
+  // Singleton StatusBarManager instance
   private static statusBarManager: StatusBarManager | null = null;
 
   /**
-   * StatusBarManagerのインスタンスを取得または初期化します
+   * Get or lazily initialize the StatusBarManager instance.
    */
   private static getStatusBarManager(): StatusBarManager {
     if (!this.statusBarManager) {
@@ -19,16 +19,32 @@ export class ConfirmationUI {
   }
 
   /**
-   * 設定に基づいてコマンド実行前の確認UIを表示します
-   * @param message 確認メッセージ
-   * @param detail 追加の詳細情報（コマンドなど）
-   * @param approveLabel 承認ボタンのラベル
-   * @param denyLabel 拒否ボタンのラベル
-   * @returns 承認された場合は "Approve"、拒否された場合は "Deny" または理由テキスト
+   * Show a pre-execution confirmation UI driven by user settings.
+   * @param message Confirmation message.
+   * @param detail Extra detail (e.g., the command being confirmed).
+   * @param approveLabel Label for the approve button.
+   * @param denyLabel Label for the deny button.
+   * @param kind Origin of the confirmation — `"edit"` calls are eligible for auto-accept when the user has toggled
+   *             `mcpServer.autoAcceptEdits`. `"shell"` (default) always prompts. Unspecified = `"shell"` to keep
+   *             existing call sites fail-closed.
+   * @returns `"Approve"` when approved; `"Deny"` or a free-text reason when denied.
    */
-  static async confirm(message: string, detail: string, approveLabel: string, denyLabel: string): Promise<string> {
-    // 設定から確認UI方法を取得
+  static async confirm(
+    message: string,
+    detail: string,
+    approveLabel: string,
+    denyLabel: string,
+    kind: 'edit' | 'shell' = 'shell'
+  ): Promise<string> {
     const config = vscode.workspace.getConfiguration('mcpServer');
+
+    // Edit-origin confirmations short-circuit when the user has enabled auto-accept-edits mode.
+    if (kind === 'edit' && config.get<boolean>('autoAcceptEdits', false)) {
+      console.log('[ConfirmationUI] Auto-accepting edit (mcpServer.autoAcceptEdits is on)');
+      return 'Approve';
+    }
+
+    // Pick confirmation UI style from settings
     const confirmationUI = config.get<string>('confirmationUI', 'quickPick');
 
     console.log(`[ConfirmationUI] Using ${confirmationUI} UI for confirmation`);
@@ -41,15 +57,15 @@ export class ConfirmationUI {
   }
 
   /**
-   * QuickPickを使用した確認UIを表示します
+   * Show a QuickPick-based confirmation UI.
    */
   private static async showQuickPickConfirmation(
-    message: string, 
-    detail: string, 
+    message: string,
+    detail: string,
     approveLabel: string,
     denyLabel: string
   ): Promise<string> {
-    // QuickPickを作成
+    // Create the QuickPick
     const quickPick = vscode.window.createQuickPick();
 
     quickPick.title = message;
@@ -103,32 +119,32 @@ export class ConfirmationUI {
   }
 
   /**
-   * ステータスバーを使用した確認UIを表示します
+   * Show a status-bar-based confirmation UI.
    */
   private static async showStatusBarConfirmation(
-    message: string, 
-    detail: string, 
+    message: string,
+    detail: string,
     approveLabel: string,
     denyLabel: string
   ): Promise<string> {
-    // メッセージを表示
+    // Show the message to the user
     vscode.window.showInformationMessage(`${message} ${detail ? `- ${detail}` : ''}`);
 
-    // StatusBarManagerのインスタンスを取得
+    // Grab the StatusBarManager instance
     try {
       const statusBarManager = this.getStatusBarManager();
 
-      // StatusBarManagerを使用してユーザーの選択を待機
+      // Use the StatusBarManager to wait for the user's choice
       console.log('[ConfirmationUI] Using StatusBarManager for confirmation');
       const approved = await statusBarManager.ask(approveLabel, denyLabel);
       statusBarManager.hide();
 
-      // 承認された場合は "Approve" を返す
+      // Return "Approve" if approved
       if (approved) {
         return "Approve";
       }
 
-      // 拒否された場合は追加のフィードバックを収集
+      // On denial, collect optional free-text feedback
       const inputBox = vscode.window.createInputBox();
       inputBox.title = "Feedback";
       inputBox.placeholder = "Add context for the agent (optional)";
@@ -150,7 +166,7 @@ export class ConfirmationUI {
       });
     } catch (error) {
       console.error('Error using StatusBarManager:', error);
-      // エラーが発生した場合はQuickPickにフォールバック
+      // Fall back to QuickPick on error
       console.log('[ConfirmationUI] Falling back to QuickPick confirmation');
       return await this.showQuickPickConfirmation(message, detail, approveLabel, denyLabel);
     }

@@ -11,7 +11,7 @@ suite('List Directory Tool Test Suite', () => {
     console.log('Test setup - workspace folders:', vscode.workspace.workspaceFolders);
     console.log('Test setup - tmpDir:', tmpDir);
 
-    // テスト用ディレクトリ構造を作成
+    // Create the directory structure for tests
     await fs.mkdir(tmpDir, { recursive: true });
     await fs.mkdir(path.join(tmpDir, 'dir1'), { recursive: true });
     await fs.mkdir(path.join(tmpDir, 'dir1/subdir'), { recursive: true });
@@ -26,7 +26,7 @@ suite('List Directory Tool Test Suite', () => {
   });
 
   suiteTeardown(async () => {
-    // テスト用ディレクトリを削除
+    // Remove the test directory
     await fs.rm(tmpDir, { recursive: true, force: true });
     console.log('Test teardown - removed test directory');
   });

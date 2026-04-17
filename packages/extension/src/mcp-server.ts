@@ -51,7 +51,16 @@ interface RegisteredTool {
   inputZodSchema?: AnyZodObject;
   inputSchema?: Tool['inputSchema'];
   callback: ToolCallback<undefined | ZodRawShape>;
+  title?: string;
+  annotations?: Tool['annotations'];
 };
+
+export interface ToolOptions {
+  /** Human-readable label shown by MCP clients in preference to the bare tool `name`. */
+  title?: string;
+  /** Behavior hints (readOnly, destructive, idempotent, openWorld). Per spec these are ADVISORY — clients must not make security decisions from them. */
+  annotations?: Tool['annotations'];
+}
 
 export class ToolRegistry {
   private _registeredTools: { [name: string]: RegisteredTool } = {};
@@ -75,6 +84,7 @@ export class ToolRegistry {
     description: string,
     inputSchema: Tool['inputSchema'],
     cb: (args: unknown, extra: RequestHandlerExtra<ServerRequest, ServerNotification>) => ReturnType<ToolCallback<any>>,
+    options?: ToolOptions,
   ) {
 
     if (this._registeredTools[name]) {
@@ -86,6 +96,8 @@ export class ToolRegistry {
       description,
       inputSchema,
       callback: cb,
+      title: options?.title,
+      annotations: options?.annotations,
     };
 
     this.#setToolRequestHandlers();
@@ -96,6 +108,7 @@ export class ToolRegistry {
     description: string,
     paramsSchema: Args,
     cb: ToolCallback<Args>,
+    options?: ToolOptions,
   ) {
     if (this._registeredTools[name]) {
       this.logMessage(`Tool ${name} is already registered`);
@@ -107,6 +120,8 @@ export class ToolRegistry {
       inputZodSchema:
         paramsSchema === undefined ? undefined : z.object(paramsSchema),
       callback: cb,
+      title: options?.title,
+      annotations: options?.annotations,
     };
 
     this.#setToolRequestHandlers();
@@ -131,7 +146,7 @@ export class ToolRegistry {
     this.server.setRequestHandler(ListToolsRequestSchema, (): ListToolsResult => ({
       tools: Object.entries(this._registeredTools).map(([name, tool]): Tool => {
         let inputSchema: Tool['inputSchema'];
-        
+
         if (tool.inputSchema) {
           inputSchema = tool.inputSchema;
         } else if (tool.inputZodSchema) {
@@ -142,12 +157,15 @@ export class ToolRegistry {
         } else {
           inputSchema = toJsonSchema2020({ type: "object" }) as Tool['inputSchema'];
         }
-        
-        return {
+
+        const toolDef: Tool = {
           name,
           description: tool.description,
           inputSchema,
         };
+        if (tool.title !== undefined) toolDef.title = tool.title;
+        if (tool.annotations !== undefined) toolDef.annotations = tool.annotations;
+        return toolDef;
       }),
     }));
 
@@ -263,6 +281,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
         isError: result.isError,
       };
+    },
+    {
+      title: 'Execute Shell Command',
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     }
   );
 
@@ -294,6 +316,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
       };
     },
+    {
+      title: 'Check Code Diagnostics',
+      annotations: { readOnlyHint: true, idempotentHint: true },
+    },
   );
 
   // Register 'focus_editor' tool
@@ -317,6 +343,10 @@ function registerTools(mcpServer: ToolRegistry) {
       const result = await focusEditorTool(params);
       return result;
     },
+    {
+      title: 'Focus Editor at Location',
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
   );
 
   // Register debug tools
@@ -330,6 +360,10 @@ function registerTools(mcpServer: ToolRegistry) {
         ...result,
         content: result.content.map((item) => ({ type: 'text', text: JSON.stringify(item.json) })),
       };
+    },
+    {
+      title: 'List Debug Sessions',
+      annotations: { readOnlyHint: true, idempotentHint: true },
     },
   );
 
@@ -346,6 +380,10 @@ function registerTools(mcpServer: ToolRegistry) {
           type: 'text' as const,
         })),
       };
+    },
+    {
+      title: 'Start Debug Session',
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
   );
 
@@ -364,6 +402,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
       };
     },
+    {
+      title: 'Restart Debug Session',
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
   );
 
   mcpServer.tool(
@@ -379,6 +421,10 @@ function registerTools(mcpServer: ToolRegistry) {
           type: 'text' as const,
         })),
       };
+    },
+    {
+      title: 'Stop Debug Session',
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
   );
 
@@ -399,6 +445,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
         isError: result.isError,
       };
+    },
+    {
+      title: 'Read File',
+      annotations: { readOnlyHint: true, idempotentHint: true },
     }
   );
 
@@ -425,6 +475,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
         isError: result.isError,
       };
+    },
+    {
+      title: 'Write File',
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
     }
   );
 
@@ -444,6 +498,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
         isError: result.isError,
       };
+    },
+    {
+      title: 'Undo Last Edit',
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
     }
   );
 
@@ -472,6 +530,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
         isError: result.isError,
       };
+    },
+    {
+      title: 'Text Editor',
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
     }
   );
 
@@ -493,6 +555,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
         isError: result.isError,
       };
+    },
+    {
+      title: 'List Directory',
+      annotations: { readOnlyHint: true, idempotentHint: true },
     }
   );
 
@@ -515,6 +581,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
         isError: result.isError,
       };
+    },
+    {
+      title: 'Get Terminal Output',
+      annotations: { readOnlyHint: true, idempotentHint: true },
     }
   );
 
@@ -536,6 +606,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
         isError: result.isError,
       };
+    },
+    {
+      title: 'List VSCode Commands',
+      annotations: { readOnlyHint: true, idempotentHint: true },
     }
   );
 
@@ -558,6 +632,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
         isError: result.isError,
       };
+    },
+    {
+      title: 'Execute VSCode Command',
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
     }
   );
 
@@ -590,6 +668,10 @@ function registerTools(mcpServer: ToolRegistry) {
         })),
         isError: result.isError,
       };
+    },
+    {
+      title: 'Preview URL in Browser',
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     }
   );
 

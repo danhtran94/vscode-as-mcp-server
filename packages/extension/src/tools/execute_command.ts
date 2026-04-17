@@ -61,7 +61,7 @@ export class ExecuteCommandTool {
       // If user denied execution
       if (userResponse !== "Approve") {
         return [
-          false,
+          true,
           formatResponse.toolResult(`Command execution was denied by the user. ${userResponse !== "Deny" ? `Feedback: ${userResponse}` : ""}`)
         ];
       }
@@ -120,11 +120,16 @@ export class ExecuteCommandTool {
     result = result.trim();
 
     const terminalId = terminalInfo.id;
+    const exitCode = process.exitCode;
+    const failed = exitCode !== undefined && exitCode !== 0;
 
     if (completed) {
-      return [false, formatResponse.toolResult(
-        `Command executed in terminal (id: ${terminalId}).${result ? `\nOutput:\n${result}` : ""}`
-      )]
+      // Prefer returning raw stdout when present. On failure, prepend a concise exit-code header
+      // so the caller can distinguish the error cause without losing the output.
+      const text = result
+        ? (failed ? `Command failed with exit code ${exitCode} (terminal id: ${terminalId}).\n${result}` : result)
+        : `Command executed in terminal (id: ${terminalId})${exitCode !== undefined ? ` with exit code ${exitCode}` : ""}.`;
+      return [failed, formatResponse.toolResult(text)]
     } else {
       // If we got here and it's not completed, it's either still running or hit the timeout
       const timeoutMessage = timeout !== 300000 ? ` (timeout: ${timeout}ms)` : "";
@@ -153,7 +158,7 @@ export async function executeCommandToolHandler(params: z.infer<typeof executeCo
   }
 
   const tool = new ExecuteCommandTool(workspaceRoot);
-  const [success, response] = await tool.execute(
+  const [userRejected, response] = await tool.execute(
     params.command,
     params.customCwd,
     params.modifySomething,
@@ -162,7 +167,7 @@ export async function executeCommandToolHandler(params: z.infer<typeof executeCo
   );
 
   return {
-    isError: !success,
+    isError: userRejected,
     content: [{ text: response.text }],
   };
 }

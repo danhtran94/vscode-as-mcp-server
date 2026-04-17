@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { z } from 'zod';
 
-// Zodスキーマ定義
+// Zod schema definition
 export const listDirectorySchema = z.object({
   path: z.string().describe('Directory path to list'),
   depth: z.number().int().min(1).optional().describe('Maximum depth for traversal (default: unlimited)'),
@@ -15,7 +15,7 @@ type ListDirectoryParams = z.infer<typeof listDirectorySchema>;
 interface ListDirectoryResult {
   content: { type: 'text'; text: string }[];
   isError?: boolean;
-  [key: string]: unknown; // 追加: MCP Serverが期待するインデックスシグネチャ
+  [key: string]: unknown; // Index signature required by the MCP Server callback contract
 }
 
 interface TreeNode {
@@ -25,8 +25,8 @@ interface TreeNode {
 }
 
 /**
- * ディレクトリツリーを表示するツール
- * .gitignore パターンを考慮して、指定されたディレクトリの構造を表示します
+ * Tool that renders a directory tree.
+ * Respects .gitignore patterns when listing the target directory.
  */
 export async function listDirectoryTool(params: ListDirectoryParams): Promise<ListDirectoryResult> {
   try {
@@ -48,11 +48,11 @@ export async function listDirectoryTool(params: ListDirectoryParams): Promise<Li
       };
     }
 
-    // .gitignore を読み込む
+    // Load .gitignore patterns
     const ignorePatterns = await loadGitignorePatterns(resolvedPath);
     const ig = ignore.default().add(ignorePatterns);
 
-    // ディレクトリツリーを構築
+    // Build the directory tree
     const tree = await buildDirectoryTree(
       resolvedPath,
       path.basename(resolvedPath),
@@ -62,7 +62,7 @@ export async function listDirectoryTool(params: ListDirectoryParams): Promise<Li
       ig
     );
 
-    // ツリーを表示用のテキストに変換
+    // Render the tree as display text
     const treeText = generateTreeText(tree);
 
     return {
@@ -79,9 +79,9 @@ export async function listDirectoryTool(params: ListDirectoryParams): Promise<Li
 }
 
 /**
- * パスを解決する
- * @param dirPath 解決するパス
- * @returns 絶対パス
+ * Resolve a directory path.
+ * @param dirPath Path to resolve (absolute or workspace-relative).
+ * @returns Absolute path.
  */
 function resolvePath(dirPath: string): string {
   if (path.isAbsolute(dirPath)) {
@@ -97,15 +97,15 @@ function resolvePath(dirPath: string): string {
 }
 
 /**
- * .gitignore パターンを読み込む
- * @param dirPath ディレクトリパス
- * @returns .gitignore パターンの配列
+ * Load .gitignore patterns from the directory and its ancestors.
+ * @param dirPath Directory path to start from.
+ * @returns Collected array of gitignore patterns.
  */
 async function loadGitignorePatterns(dirPath: string): Promise<string[]> {
   const patterns: string[] = [];
 
   try {
-    // ルートディレクトリから .gitignore を検索
+    // Walk up from the given directory looking for .gitignore files
     let currentDir = dirPath;
 
     while (currentDir) {
@@ -123,7 +123,7 @@ async function loadGitignorePatterns(dirPath: string): Promise<string[]> {
 
         patterns.push(...validPatterns);
       } catch {
-        // .gitignore が存在しない場合は無視
+        // .gitignore doesn't exist at this level — ignore
       }
 
       const parentDir = path.dirname(currentDir);
@@ -141,14 +141,14 @@ async function loadGitignorePatterns(dirPath: string): Promise<string[]> {
 }
 
 /**
- * ディレクトリツリーを構築する
- * @param fullPath 完全なパス
- * @param nodeName ノード名
- * @param currentDepth 現在の深さ
- * @param maxDepth 最大深さ
- * @param includeHidden 隠しファイルを含めるかどうか
- * @param ignorer ignore パターンチェッカー
- * @returns ツリーノード
+ * Build a directory tree.
+ * @param fullPath Absolute path of the directory to scan.
+ * @param nodeName Name used for the current tree node.
+ * @param currentDepth Current recursion depth.
+ * @param maxDepth Maximum recursion depth.
+ * @param includeHidden Whether to include dotfiles.
+ * @param ignorer Gitignore pattern checker.
+ * @returns Root tree node for the scanned directory.
  */
 async function buildDirectoryTree(
   fullPath: string,
@@ -170,10 +170,10 @@ async function buildDirectoryTree(
   }
 
   try {
-    // ディレクトリ内のエントリを取得
+    // Read directory entries
     const entries = await vscode.workspace.fs.readDirectory(uri);
 
-    // ファイル名でソート (ディレクトリ優先)
+    // Sort by name, directories first
     const sortedEntries = entries.sort((a, b) => {
       const aIsDir = !!(a[1] & vscode.FileType.Directory);
       const bIsDir = !!(b[1] & vscode.FileType.Directory);
@@ -185,7 +185,7 @@ async function buildDirectoryTree(
     });
 
     for (const [name, type] of sortedEntries) {
-      // 隠しファイルをスキップ (オプションで設定可能)
+      // Skip hidden files unless explicitly requested
       if (!includeHidden && name.startsWith('.')) {
         continue;
       }
@@ -193,7 +193,7 @@ async function buildDirectoryTree(
       const entryPath = path.join(fullPath, name);
       const relativePath = path.relative(path.dirname(fullPath), entryPath);
 
-      // .gitignore パターンに一致するかチェック
+      // Skip entries matched by .gitignore patterns
       if (ignorer.ignores(relativePath)) {
         continue;
       }
@@ -201,7 +201,7 @@ async function buildDirectoryTree(
       const isDirectory = !!(type & vscode.FileType.Directory);
 
       if (isDirectory) {
-        // 再帰的にサブディレクトリをスキャン
+        // Recurse into subdirectory
         const childNode = await buildDirectoryTree(
           entryPath,
           name,
@@ -212,7 +212,7 @@ async function buildDirectoryTree(
         );
         root.children.push(childNode);
       } else {
-        // ファイルノードを追加
+        // Append leaf file node
         root.children.push({
           name,
           isDirectory: false,
@@ -229,11 +229,11 @@ async function buildDirectoryTree(
 }
 
 /**
- * ツリーノードをテキスト表現に変換
- * @param node ツリーノード
- * @param prefix 行の接頭辞
- * @param isLast 最後の子ノードかどうか
- * @returns ツリーテキスト
+ * Render a tree node as indented text.
+ * @param node Current tree node.
+ * @param prefix Line prefix accumulated from parent frames.
+ * @param isLast Whether this node is the last child of its parent.
+ * @returns Rendered tree text.
  */
 function generateTreeText(node: TreeNode, prefix = '', isLast = true): string {
   let result = prefix;

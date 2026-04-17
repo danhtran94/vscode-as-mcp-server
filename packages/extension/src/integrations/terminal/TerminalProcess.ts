@@ -24,6 +24,8 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 	private lastRetrievedIndex: number = 0
 	isHot: boolean = false
 	private hotTimer: NodeJS.Timeout | null = null
+	// Exit code parsed from OSC 633;D;<code>. undefined until the command finishes (or if shell integration is unavailable).
+	exitCode?: number
 
 	// constructor() {
 	// 	super()
@@ -37,6 +39,12 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 			let didOutputNonCommand = false
 			let didEmitEmptyLine = false
 			for await (let data of stream) {
+				// Capture exit code from OSC 633;D;<code> before any stripping consumes it.
+				const exitMatch = data.match(/\]633;D;(\d+)/)
+				if (exitMatch) {
+					this.exitCode = parseInt(exitMatch[1], 10)
+				}
+
 				// 1. Process chunk and remove artifacts
 				if (isFirstChunk) {
 					/*

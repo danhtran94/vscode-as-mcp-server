@@ -1,6 +1,6 @@
 {
   "name": "vscode-as-mcp-server",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "VSCode MCP relay that supports multiple servers",
   "main": "dist/index.js",
   "bin": {
@@ -30,15 +30,15 @@
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.14.0",
-    "nock": "^13.4.0",
-    "tsx": "^4.7.0",
-    "typescript": "^5.8.2"
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   },
   "dependencies": {
-    "@hono/node-server": "^1.14.0",
-    "@modelcontextprotocol/sdk": "^1.8.0",
-    "fs-extra": "^11.3.0",
-    "hono": "^4.7.5"
+    "@hono/node-server": "^1.19.14",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "fs-extra": "^11.3.4",
+    "hono": "^4.12.14",
+    "zod": "^3.25.0"
   },
   "packageManager": "pnpm@10.6.1+sha512.40ee09af407fa9fbb5fbfb8e1cb40fbb74c0af0c3e10e9224d7b53c7658528615b2c92450e74cfad91e3a2dcafe3ce4050d80bda71d757756d2ce2b66213e9a3"
 }
